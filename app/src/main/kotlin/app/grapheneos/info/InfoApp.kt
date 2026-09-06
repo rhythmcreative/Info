@@ -6,9 +6,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,7 +82,8 @@ fun InfoApp() {
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier
                                 .padding(end = 12.dp)
-                                .size(28.dp)
+                                .height(22.dp)
+                                .width(55.dp)
                         )
                         Text(
                             text = stringResource(id = R.string.app_name),
@@ -104,7 +109,7 @@ fun InfoApp() {
                         }
                     ) {
                         Icon(
-                            painter = painterResource(id = R.drawable.github),
+                            imageVector = Icons.Outlined.Info,
                             contentDescription = stringResource(R.string.releases_top_bar_info_button_content_description)
                         )
                     }
