@@ -15,7 +15,7 @@ plugins {
 
 java {
     toolchain {
-        languageVersion.set(JavaLanguageVersion.of(17))
+        languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
 
@@ -35,7 +35,6 @@ android {
     namespace = "app.grapheneos.info"
     compileSdk = 37
     buildToolsVersion = "37.0.0"
-    ndkVersion = "29.0.14206865"
 
     defaultConfig {
         applicationId = "app.grapheneos.info"
@@ -46,11 +45,6 @@ android {
 
         vectorDrawables {
             useSupportLibrary = true
-        }
-
-        ndk {
-            abiFilters.clear()
-            abiFilters.addAll(listOf("arm64-v8a", "x86_64"))
         }
     }
 
