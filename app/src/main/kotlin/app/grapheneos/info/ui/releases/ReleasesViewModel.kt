@@ -79,8 +79,10 @@ class ReleasesViewModel(
 
                 for (ch in channels) {
                     channelBuilds[ch] = mutableSetOf()
-                    val jsonUrl = "https://raw.githubusercontent.com/rhythmcreative/lineageos-$device-ota/main/$device-$ch.json"
-                    val jsonText = fetchUrl(jsonUrl, useCaches = false)
+                    val apiContentsUrl = "https://api.github.com/repos/rhythmcreative/lineageos-$device-ota/contents/$device-$ch.json"
+                    val rawUrl = "https://raw.githubusercontent.com/rhythmcreative/lineageos-$device-ota/main/$device-$ch.json"
+                    val jsonText = fetchUrl(apiContentsUrl, useCaches = false, acceptHeader = "application/vnd.github.raw")
+                        ?: fetchUrl(rawUrl, useCaches = false)
                     if (!jsonText.isNullOrBlank()) {
                         try {
                             val arr = JSONArray(jsonText)
@@ -105,8 +107,10 @@ class ReleasesViewModel(
                 }
 
                 // Also check default $device.json (fallback for stable)
-                val defaultJsonUrl = "https://raw.githubusercontent.com/rhythmcreative/lineageos-$device-ota/main/$device.json"
-                val defaultJsonText = fetchUrl(defaultJsonUrl, useCaches = false)
+                val defaultApiUrl = "https://api.github.com/repos/rhythmcreative/lineageos-$device-ota/contents/$device.json"
+                val defaultRawUrl = "https://raw.githubusercontent.com/rhythmcreative/lineageos-$device-ota/main/$device.json"
+                val defaultJsonText = fetchUrl(defaultApiUrl, useCaches = false, acceptHeader = "application/vnd.github.raw")
+                    ?: fetchUrl(defaultRawUrl, useCaches = false)
                 if (!defaultJsonText.isNullOrBlank()) {
                     try {
                         val arr = JSONArray(defaultJsonText)
@@ -305,7 +309,11 @@ class ReleasesViewModel(
         }
     }
 
-    private fun fetchUrl(urlString: String, useCaches: Boolean): String? {
+    private fun fetchUrl(
+        urlString: String,
+        useCaches: Boolean,
+        acceptHeader: String = "application/vnd.github+json, text/plain, application/json, */*"
+    ): String? {
         val targetUrl = if (!useCaches) {
             val delimiter = if (urlString.contains("?")) "&" else "?"
             "$urlString${delimiter}_t=${System.currentTimeMillis()}"
@@ -327,7 +335,7 @@ class ReleasesViewModel(
                 readTimeout = 15_000
                 this.useCaches = useCaches
                 setRequestProperty("User-Agent", "LineageOS-Info-App")
-                setRequestProperty("Accept", "application/vnd.github+json, text/plain, application/json, */*")
+                setRequestProperty("Accept", acceptHeader)
                 setRequestProperty("Cache-Control", "no-cache, no-store, must-revalidate")
                 setRequestProperty("Pragma", "no-cache")
             }
