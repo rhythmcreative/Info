@@ -190,7 +190,6 @@ class ReleasesViewModel(
         val entries = mutableMapOf<String, String>()
         val device = Build.DEVICE?.lowercase() ?: "akita"
         val model = if (!Build.MODEL.isNullOrBlank()) Build.MODEL else "Pixel 8a"
-        val releaseUrl = "https://github.com/rhythmcreative/lineageos-$device-ota/releases"
         val dateRegex = Regex("""\b(20\d\d[-.]?\d\d[-.]?\d\d(?:[-.]?\d+)?)\b""")
 
         if (subMatches.isNotEmpty()) {
@@ -211,12 +210,14 @@ class ReleasesViewModel(
                 val romVersion = Regex("""(LineageOS\s*[\d.]+)""", RegexOption.IGNORE_CASE).find(rawTitle)?.value ?: "LineageOS 24.0"
                 val deviceLabel = "$model, $device, $romVersion"
 
+                val specificReleaseUrl = getReleaseUrlForTag(device, tag)
+
                 val sortKey = String.format("%06d", parsedSections.size - i)
                 val xmlEntry = formatMarkdownSectionToXml(
                     title = tag,
                     tag = tag,
                     deviceLabel = deviceLabel,
-                    releaseUrl = releaseUrl,
+                    releaseUrl = specificReleaseUrl,
                     prevTag = prevTag,
                     markdown = sectionBody
                 )
@@ -225,11 +226,12 @@ class ReleasesViewModel(
         } else {
             val sortKey = "000001"
             val deviceLabel = "$model, $device, LineageOS 24.0"
+            val defaultReleaseUrl = "https://github.com/rhythmcreative/lineageos-$device-ota/releases"
             val xmlEntry = formatMarkdownSectionToXml(
                 title = "Changes",
                 tag = "Current",
                 deviceLabel = deviceLabel,
-                releaseUrl = releaseUrl,
+                releaseUrl = defaultReleaseUrl,
                 prevTag = null,
                 markdown = changesText
             )
@@ -246,11 +248,13 @@ class ReleasesViewModel(
         val entries = mutableMapOf<String, String>()
         try {
             val jsonArray = JSONArray(jsonString)
-            val releases = mutableListOf<Triple<String, String, String>>()
+            data class ReleaseInfo(val name: String, val tagName: String, val htmlUrl: String, val body: String)
+            val releases = mutableListOf<ReleaseInfo>()
             for (i in 0 until jsonArray.length()) {
                 val releaseObj = jsonArray.getJSONObject(i)
                 val tagName = releaseObj.optString("tag_name", "")
                 val name = releaseObj.optString("name", tagName).ifBlank { tagName }
+                val htmlUrl = releaseObj.optString("html_url", "")
                 var body = releaseObj.optString("body", "")
 
                 val changesRegex = Regex("""(?im)^#{1,4}\s*changes\b.*$""")
@@ -258,21 +262,26 @@ class ReleasesViewModel(
                 if (match != null) {
                     body = body.substring(match.range.last + 1).trim()
                 }
-                releases.add(Triple(name, tagName, body))
+                releases.add(ReleaseInfo(name, tagName, htmlUrl, body))
             }
 
             val device = Build.DEVICE?.lowercase() ?: "akita"
             val model = if (!Build.MODEL.isNullOrBlank()) Build.MODEL else "Pixel 8a"
-            val releaseUrl = "https://github.com/rhythmcreative/lineageos-$device-ota/releases"
             val dateRegex = Regex("""\b(20\d\d[-.]?\d\d[-.]?\d\d(?:[-.]?\d+)?)\b""")
 
             for (i in releases.indices) {
-                val (name, tagName, body) = releases[i]
+                val (name, tagName, htmlUrl, body) = releases[i]
                 val tag = dateRegex.find(tagName)?.value ?: dateRegex.find(name)?.value ?: tagName.ifBlank { name }
                 val prevTag = if (i + 1 < releases.size) {
                     val nextRelease = releases[i + 1]
-                    dateRegex.find(nextRelease.second)?.value ?: nextRelease.second
+                    dateRegex.find(nextRelease.tagName)?.value ?: dateRegex.find(nextRelease.name)?.value ?: nextRelease.tagName
                 } else null
+
+                val specificReleaseUrl = if (htmlUrl.isNotBlank()) {
+                    htmlUrl
+                } else {
+                    getReleaseUrlForTag(device, tagName.ifBlank { tag })
+                }
 
                 val deviceLabel = "$model, $device, LineageOS 24.0"
                 val sortKey = String.format("%06d", releases.size - i)
@@ -280,7 +289,7 @@ class ReleasesViewModel(
                     title = tag,
                     tag = tag,
                     deviceLabel = deviceLabel,
-                    releaseUrl = releaseUrl,
+                    releaseUrl = specificReleaseUrl,
                     prevTag = prevTag,
                     markdown = body
                 )
@@ -290,6 +299,21 @@ class ReleasesViewModel(
             Log.e(TAG, "Error parsing releases JSON", e)
         }
         return entries
+    }
+
+    private fun getReleaseUrlForTag(device: String, tag: String): String {
+        val trimmedTag = tag.trim().replace('.', '-')
+        val gitTag = when {
+            trimmedTag.startsWith("$device-", ignoreCase = true) -> trimmedTag
+            trimmedTag.matches(Regex("""^20\d\d[-_]?\d\d[-_]?\d\d.*""")) -> "$device-$trimmedTag"
+            trimmedTag.equals("Current", ignoreCase = true) -> ""
+            else -> "$device-$trimmedTag"
+        }
+        return if (gitTag.isNotEmpty()) {
+            "https://github.com/rhythmcreative/lineageos-$device-ota/releases/tag/$gitTag"
+        } else {
+            "https://github.com/rhythmcreative/lineageos-$device-ota/releases"
+        }
     }
 
     /**
@@ -304,14 +328,15 @@ class ReleasesViewModel(
         markdown: String
     ): String {
         val escapedTitle = escapeXml(title)
+        val escapedReleaseUrl = escapeXml(releaseUrl)
         val sb = StringBuilder()
-        sb.append("<title>").append(escapedTitle).append("</title>")
+        sb.append("<title url=\"").append(escapedReleaseUrl).append("\">").append(escapedTitle).append("</title>")
         sb.append("<content><div>")
 
         val hasTagsAlready = markdown.contains("Tags:", ignoreCase = true) || markdown.contains("Etiquetas:", ignoreCase = true)
         if (!hasTagsAlready) {
             sb.append("<p>Tags:</p>")
-            sb.append("<ul><li><a href=\"").append(releaseUrl).append("\">").append(escapeXml(tag)).append("</a> (").append(escapeXml(deviceLabel)).append(")</li></ul>")
+            sb.append("<ul><li><a href=\"").append(escapedReleaseUrl).append("\">").append(escapeXml(tag)).append("</a> (").append(escapeXml(deviceLabel)).append(")</li></ul>")
             if (!prevTag.isNullOrBlank()) {
                 sb.append("<p>Changes since the ").append(escapeXml(prevTag)).append(" release:</p>")
             } else {

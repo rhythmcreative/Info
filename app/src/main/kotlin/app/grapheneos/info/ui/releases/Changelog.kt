@@ -139,6 +139,9 @@ private fun ParseChildren(
             Node.ELEMENT_NODE -> {
                 when (child.nodeName) {
                     "title" -> {
+                        val titleUrl = child.attributes?.getNamedItem("url")?.nodeValue
+                            ?: child.attributes?.getNamedItem("href")?.nodeValue
+
                         val annotatedStringBuilder = AnnotatedString.Builder()
 
                         NodeToComposable(
@@ -155,11 +158,15 @@ private fun ParseChildren(
                             text = annotatedString,
                             modifier = modifier.semantics { heading() },
                             onClick = { offset ->
-                                annotatedString
-                                    .getStringAnnotations("URL", offset, offset).firstOrNull()
-                                    ?.let { annotation ->
-                                        localUriHandler.openUri(annotation.item)
-                                    }
+                                val targetUrl = annotatedString
+                                    .getStringAnnotations("URL", offset, offset).firstOrNull()?.item
+                                    ?: titleUrl
+                                targetUrl?.let { url ->
+                                    val fullUrl = if (url.startsWith('/')) "https://github.com/rhythmcreative$url" else url
+                                    try {
+                                        localUriHandler.openUri(fullUrl)
+                                    } catch (_: Exception) {}
+                                }
                             },
                             style = typography.titleLarge,
                         )
@@ -214,7 +221,9 @@ private fun ParseChildren(
                                 annotatedString
                                     .getStringAnnotations("URL", offset, offset).firstOrNull()
                                     ?.let { annotation ->
-                                        localUriHandler.openUri(annotation.item)
+                                        try {
+                                            localUriHandler.openUri(annotation.item)
+                                        } catch (_: Exception) {}
                                     }
                             },
                             modifier = if (likelyHeading) {
@@ -278,7 +287,9 @@ private fun ParseChildren(
                                     annotatedString
                                         .getStringAnnotations("URL", offset, offset).firstOrNull()
                                         ?.let { annotation ->
-                                            localUriHandler.openUri(annotation.item)
+                                            try {
+                                                localUriHandler.openUri(annotation.item)
+                                            } catch (_: Exception) {}
                                         }
                                 }
                             )
@@ -351,7 +362,9 @@ private fun ParseChildren(
                                 annotatedString
                                     .getStringAnnotations("URL", offset, offset).firstOrNull()
                                     ?.let { annotation ->
-                                        localUriHandler.openUri(annotation.item)
+                                        try {
+                                            localUriHandler.openUri(annotation.item)
+                                        } catch (_: Exception) {}
                                     }
                             },
                             modifier = if (likelyHeading) {
