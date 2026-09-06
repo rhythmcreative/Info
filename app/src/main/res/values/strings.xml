@@ -9,4 +9,11 @@
     <string name="browser_link_illegal_argument_exception_snackbar_error">Unable to open link. Make sure a browser is installed and enabled on your device.</string>
     <string name="releases_top_bar_info_button_content_description">Info about the releases</string>
     <string name="releases_see_all_button">See all release notes</string>
+    <string name="channel_all">All</string>
+    <string name="channel_stable">Stable</string>
+    <string name="channel_beta">Beta</string>
+    <string name="channel_alpha">Alpha</string>
+    <string name="device_channel">Device channel:</string>
+    <string name="filter_by_channel">Filter by channel:</string>
+    <string name="no_releases_for_channel">No releases found for this channel.</string>
 </resources>

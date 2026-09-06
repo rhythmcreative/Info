@@ -26,6 +26,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -54,6 +55,8 @@ enum class InfoAppScreens(@StringRes val title: Int) {
 fun InfoApp() {
     val releasesViewModel: ReleasesViewModel = viewModel()
     val releasesUiState = releasesViewModel.uiState.collectAsState()
+    val selectedChannel by releasesViewModel.selectedChannel.collectAsState()
+    val deviceChannel by releasesViewModel.deviceChannel.collectAsState()
 
     val changelogLazyListState = rememberLazyListState()
     val changelogLazyListStateScope = rememberCoroutineScope()
@@ -126,6 +129,10 @@ fun InfoApp() {
                 .padding(top = innerPadding.calculateTopPadding())
                 .consumeWindowInsets(innerPadding),
             entries = releasesUiState.value.entries.toSortedMap().toList().asReversed(),
+            channelMap = releasesUiState.value.channelMap,
+            deviceChannel = deviceChannel,
+            selectedChannel = selectedChannel,
+            onChannelSelected = { releasesViewModel.setChannelFilter(it) },
             updateChangelog = { useCaches, onFinishedUpdating ->
                 releasesViewModel.updateChangelog(
                     useCaches = useCaches,

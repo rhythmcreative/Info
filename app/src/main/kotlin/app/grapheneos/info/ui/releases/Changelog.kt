@@ -1,16 +1,27 @@
 package app.grapheneos.info.ui.releases
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MaterialTheme.typography
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.semantics.heading
@@ -31,6 +42,53 @@ import org.xml.sax.InputSource
 import java.io.StringReader
 import javax.xml.parsers.DocumentBuilderFactory
 
+private data class Quadruple<A, B, C, D>(val first: A, val second: B, val third: C, val fourth: D)
+
+@Composable
+fun ChannelBadge(channel: String, modifier: Modifier = Modifier) {
+    val isDark = isSystemInDarkTheme()
+    val (label, containerColor, contentColor, borderColor) = when (channel.lowercase()) {
+        "stable", "estable" -> Quadruple(
+            "ESTABLE",
+            if (isDark) Color(0xFF14381C) else Color(0xFFE8F5E9),
+            if (isDark) Color(0xFF81C784) else Color(0xFF1B5E20),
+            if (isDark) Color(0xFF2E7D32) else Color(0xFF81C784)
+        )
+        "beta" -> Quadruple(
+            "BETA",
+            if (isDark) Color(0xFF38260F) else Color(0xFFFFF3E0),
+            if (isDark) Color(0xFFFFB74D) else Color(0xFFB25E00),
+            if (isDark) Color(0xFFF57C00) else Color(0xFFFFB74D)
+        )
+        "alpha" -> Quadruple(
+            "ALPHA",
+            if (isDark) Color(0xFF2E1A3D) else Color(0xFFF3E5F5),
+            if (isDark) Color(0xFFCE93D8) else Color(0xFF6A1B9A),
+            if (isDark) Color(0xFF8E24AA) else Color(0xFFCE93D8)
+        )
+        else -> Quadruple(
+            channel.uppercase(),
+            MaterialTheme.colorScheme.surfaceVariant,
+            MaterialTheme.colorScheme.onSurfaceVariant,
+            MaterialTheme.colorScheme.outline
+        )
+    }
+
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(8.dp),
+        color = containerColor,
+        border = BorderStroke(1.dp, borderColor)
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
+            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+            color = contentColor
+        )
+    }
+}
+
 @Composable
 fun Changelog(modifier: Modifier = Modifier, entry: String) {
     val localUriHandler = LocalUriHandler.current
@@ -42,15 +100,50 @@ fun Changelog(modifier: Modifier = Modifier, entry: String) {
                 val builder = factory.newDocumentBuilder()
 
                 val document: Document = builder.parse(InputSource(StringReader("<entry>$entry</entry>")))
-
                 document.documentElement.normalize()
+
+                val channel = document.getElementsByTagName("channel").item(0)?.textContent?.trim() ?: ""
+                val titleNode = document.getElementsByTagName("title").item(0)
+                val titleUrl = titleNode?.attributes?.getNamedItem("url")?.nodeValue
+                    ?: titleNode?.attributes?.getNamedItem("href")?.nodeValue
+                val titleText = titleNode?.textContent?.trim() ?: ""
+
+                if (titleText.isNotEmpty() || channel.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (titleText.isNotEmpty()) {
+                            Text(
+                                text = titleText,
+                                style = typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                                modifier = Modifier
+                                    .weight(1f, fill = false)
+                                    .clickable {
+                                        titleUrl?.let { url ->
+                                            val fullUrl = if (url.startsWith('/')) "https://github.com/rhythmcreative$url" else url
+                                            try {
+                                                localUriHandler.openUri(fullUrl)
+                                            } catch (_: Exception) {}
+                                        }
+                                    }
+                            )
+                        }
+                        if (channel.isNotEmpty()) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            ChannelBadge(channel = channel)
+                        }
+                    }
+                }
 
                 NodeToComposable(
                     node = document.documentElement,
                     modifier = Modifier,
                     style = LocalTextStyle.current,
                     builder = AnnotatedString.Builder(),
-                    localUriHandler = localUriHandler
+                    localUriHandler = localUriHandler,
+                    skipTitle = titleText.isNotEmpty()
                 )
             }
         }
@@ -63,7 +156,8 @@ private fun NodeToComposable(
     modifier: Modifier,
     style: TextStyle,
     builder: AnnotatedString.Builder,
-    localUriHandler: UriHandler
+    localUriHandler: UriHandler,
+    skipTitle: Boolean = false
 ) {
     val attributes = node.attributes
 
@@ -98,7 +192,7 @@ private fun NodeToComposable(
         }
     }
 
-    ParseChildren(node, modifier, style, builder, localUriHandler)
+    ParseChildren(node, modifier, style, builder, localUriHandler, skipTitle)
 
     // Pop annotations, modifier and style don't carry over so no need to do anything for those
     for (a in 0 until attributes.length) {
@@ -128,7 +222,8 @@ private fun ParseChildren(
     modifier: Modifier,
     style: TextStyle,
     builder: AnnotatedString.Builder,
-    localUriHandler: UriHandler
+    localUriHandler: UriHandler,
+    skipTitle: Boolean = false
 ) {
     val children = node.childNodes
 
@@ -138,7 +233,14 @@ private fun ParseChildren(
         when (child.nodeType) {
             Node.ELEMENT_NODE -> {
                 when (child.nodeName) {
+                    "channel" -> {
+                        // Handled in card header
+                    }
                     "title" -> {
+                        if (skipTitle) {
+                            // Already rendered in header with ChannelBadge
+                            continue
+                        }
                         val titleUrl = child.attributes?.getNamedItem("url")?.nodeValue
                             ?: child.attributes?.getNamedItem("href")?.nodeValue
 

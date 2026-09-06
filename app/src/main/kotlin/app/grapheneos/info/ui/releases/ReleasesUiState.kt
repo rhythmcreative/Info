@@ -11,6 +11,12 @@ class ReleasesUiState(savedStateHandle: SavedStateHandle) {
     var didInitialScroll: Boolean by savedStateHandle.saveable {
         mutableStateOf(false)
     }
-    /** Unsorted release notes, use .toSortedMap().toList().asReversible() to get them in the proper order. */
+    /** Unsorted release notes, use .toSortedMap().toList().asReversed() to get them in the proper order. */
     val entries: MutableMap<String, String> = mutableStateMapOf()
+
+    /** Map of entry key to release channel: "stable", "beta", "alpha" */
+    val channelMap: MutableMap<String, String> = mutableStateMapOf()
+
+    /** Loading state indicator */
+    val isLoading = mutableStateOf(false)
 }

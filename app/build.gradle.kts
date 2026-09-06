@@ -55,7 +55,7 @@ android {
 
     androidResources {
         generateLocaleConfig = true
-        localeFilters += listOf("en")
+        localeFilters += listOf("en", "es")
     }
 
     buildTypes {

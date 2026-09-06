@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">LineageOS Info</string>
+    <string name="releases">Cambios</string>
+    <string name="navigate_up_button_description">Navegar hacia arriba</string>
+    <string name="update_changelog_socket_timeout_exception_snackbar_message">Tiempo de espera agotado al conectar</string>
+    <string name="update_changelog_io_exception_snackbar_message">Error al obtener los últimos cambios</string>
+    <string name="update_changelog_unknown_service_exception_snackbar_message">Excepción de servicio desconocido</string>
+    <string name="update_changelog_failed_to_create_httpsurlconnection_snackbar_message">Error al crear la conexión HTTPS</string>
+    <string name="browser_link_illegal_argument_exception_snackbar_error">No se pudo abrir el enlace. Asegúrate de tener un navegador instalado y habilitado.</string>
+    <string name="releases_top_bar_info_button_content_description">Información sobre las versiones</string>
+    <string name="releases_see_all_button">Ver todas las notas de versión</string>
+    <string name="channel_all">Todos</string>
+    <string name="channel_stable">Estable</string>
+    <string name="channel_beta">Beta</string>
+    <string name="channel_alpha">Alpha</string>
+    <string name="device_channel">Canal del dispositivo:</string>
+    <string name="filter_by_channel">Filtrar por canal:</string>
+    <string name="no_releases_for_channel">No hay versiones publicadas en este canal.</string>
+</resources>
