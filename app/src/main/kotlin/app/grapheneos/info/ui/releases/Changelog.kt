@@ -194,8 +194,19 @@ private fun ParseChildren(
 
                         val annotatedString = annotatedStringBuilder.toAnnotatedString()
 
+                        val text = annotatedString.text.trim()
                         val likelyHeading =
-                            (annotatedString.text == "Tags:") || (annotatedString.startsWith("Changes since the"))
+                            text == "Tags:" ||
+                            text == "Etiquetas:" ||
+                            text.startsWith("Changes since the") ||
+                            text.startsWith("Changes since") ||
+                            text.startsWith("Changes in") ||
+                            text == "Changes:" ||
+                            text.startsWith("Cambios desde") ||
+                            text.startsWith("Cambios en") ||
+                            text == "Cambios:" ||
+                            text == "Notes:" ||
+                            text == "Notas:"
 
                         ClickableText(
                             text = annotatedString,
@@ -320,9 +331,19 @@ private fun ParseChildren(
                         )
 
                         val annotatedString = annotatedStringBuilder.toAnnotatedString()
-
+                        val text = annotatedString.text.trim()
                         val likelyHeading =
-                            (annotatedString.text == "Tags:") || (annotatedString.startsWith("Changes since the"))
+                            text == "Tags:" ||
+                            text == "Etiquetas:" ||
+                            text.startsWith("Changes since the") ||
+                            text.startsWith("Changes since") ||
+                            text.startsWith("Changes in") ||
+                            text == "Changes:" ||
+                            text.startsWith("Cambios desde") ||
+                            text.startsWith("Cambios en") ||
+                            text == "Cambios:" ||
+                            text == "Notes:" ||
+                            text == "Notas:"
 
                         ClickableText(
                             text = annotatedString,

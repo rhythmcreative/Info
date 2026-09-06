@@ -167,32 +167,72 @@ class ReleasesViewModel(
      * Extracts changes from README markdown starting from "# Changes" or "## Changes" downwards.
      */
     private fun extractEntriesFromReadme(markdown: String): Map<String, String>? {
-        val changesRegex = Regex("""(?im)^#{1,4}\s*changes\b.*$""")
+        val changesRegex = Regex("""(?im)^(#{1,4})\s*changes\b.*$""")
         val match = changesRegex.find(markdown) ?: return null
+        val headerDepth = match.groupValues[1].length
 
-        val changesText = markdown.substring(match.range.last + 1).trim()
+        val textAfterChanges = markdown.substring(match.range.last + 1)
+        val nonChangesRegex = Regex("""(?im)^#{1,$headerDepth}\s+.*$|^#{1,4}\s*(disclaimer|about|license|contributing|notes|credits|donate|contact)\b.*$""")
+        val endMatch = nonChangesRegex.find(textAfterChanges)
+        val changesText = if (endMatch != null) {
+            textAfterChanges.substring(0, endMatch.range.first).trim()
+        } else {
+            textAfterChanges.trim()
+        }
         if (changesText.isBlank()) return null
 
         val subHeadingRegex = Regex("""(?m)^#{2,4}\s+(.+)$""")
-        val subMatches = subHeadingRegex.findAll(changesText).toList()
+        val rawSubMatches = subHeadingRegex.findAll(changesText).toList()
+        val subMatches = rawSubMatches.filter {
+            !it.groupValues[1].trim().matches(Regex("""(?i)^(disclaimer|about|license|contributing|notes|credits|donate|contact)\b.*"""))
+        }
 
         val entries = mutableMapOf<String, String>()
+        val device = Build.DEVICE?.lowercase() ?: "akita"
+        val model = if (!Build.MODEL.isNullOrBlank()) Build.MODEL else "Pixel 8a"
+        val releaseUrl = "https://github.com/rhythmcreative/lineageos-$device-ota/releases"
+        val dateRegex = Regex("""\b(20\d\d[-.]?\d\d[-.]?\d\d(?:[-.]?\d+)?)\b""")
 
         if (subMatches.isNotEmpty()) {
+            val parsedSections = mutableListOf<Triple<String, String, String>>()
             for (i in subMatches.indices) {
                 val currentMatch = subMatches[i]
-                val title = currentMatch.groupValues[1].trim()
+                val rawTitle = currentMatch.groupValues[1].trim()
+                val tag = dateRegex.find(rawTitle)?.value ?: rawTitle
                 val startIndex = currentMatch.range.last + 1
                 val endIndex = if (i + 1 < subMatches.size) subMatches[i + 1].range.first else changesText.length
                 val sectionBody = changesText.substring(startIndex, endIndex).trim()
+                parsedSections.add(Triple(rawTitle, tag, sectionBody))
+            }
 
-                val sortKey = String.format("%06d", subMatches.size - i)
-                val xmlEntry = formatMarkdownSectionToXml(sortKey, title, sectionBody)
+            for (i in parsedSections.indices) {
+                val (rawTitle, tag, sectionBody) = parsedSections[i]
+                val prevTag = if (i + 1 < parsedSections.size) parsedSections[i + 1].second else null
+                val romVersion = Regex("""(LineageOS\s*[\d.]+)""", RegexOption.IGNORE_CASE).find(rawTitle)?.value ?: "LineageOS 24.0"
+                val deviceLabel = "$model, $device, $romVersion"
+
+                val sortKey = String.format("%06d", parsedSections.size - i)
+                val xmlEntry = formatMarkdownSectionToXml(
+                    title = tag,
+                    tag = tag,
+                    deviceLabel = deviceLabel,
+                    releaseUrl = releaseUrl,
+                    prevTag = prevTag,
+                    markdown = sectionBody
+                )
                 entries[sortKey] = xmlEntry
             }
         } else {
             val sortKey = "000001"
-            val xmlEntry = formatMarkdownSectionToXml(sortKey, "Changes", changesText)
+            val deviceLabel = "$model, $device, LineageOS 24.0"
+            val xmlEntry = formatMarkdownSectionToXml(
+                title = "Changes",
+                tag = "Current",
+                deviceLabel = deviceLabel,
+                releaseUrl = releaseUrl,
+                prevTag = null,
+                markdown = changesText
+            )
             entries[sortKey] = xmlEntry
         }
 
@@ -206,6 +246,7 @@ class ReleasesViewModel(
         val entries = mutableMapOf<String, String>()
         try {
             val jsonArray = JSONArray(jsonString)
+            val releases = mutableListOf<Triple<String, String, String>>()
             for (i in 0 until jsonArray.length()) {
                 val releaseObj = jsonArray.getJSONObject(i)
                 val tagName = releaseObj.optString("tag_name", "")
@@ -217,9 +258,32 @@ class ReleasesViewModel(
                 if (match != null) {
                     body = body.substring(match.range.last + 1).trim()
                 }
+                releases.add(Triple(name, tagName, body))
+            }
 
-                val sortKey = String.format("%06d", jsonArray.length() - i)
-                val xmlEntry = formatMarkdownSectionToXml(sortKey, name, body)
+            val device = Build.DEVICE?.lowercase() ?: "akita"
+            val model = if (!Build.MODEL.isNullOrBlank()) Build.MODEL else "Pixel 8a"
+            val releaseUrl = "https://github.com/rhythmcreative/lineageos-$device-ota/releases"
+            val dateRegex = Regex("""\b(20\d\d[-.]?\d\d[-.]?\d\d(?:[-.]?\d+)?)\b""")
+
+            for (i in releases.indices) {
+                val (name, tagName, body) = releases[i]
+                val tag = dateRegex.find(tagName)?.value ?: dateRegex.find(name)?.value ?: tagName.ifBlank { name }
+                val prevTag = if (i + 1 < releases.size) {
+                    val nextRelease = releases[i + 1]
+                    dateRegex.find(nextRelease.second)?.value ?: nextRelease.second
+                } else null
+
+                val deviceLabel = "$model, $device, LineageOS 24.0"
+                val sortKey = String.format("%06d", releases.size - i)
+                val xmlEntry = formatMarkdownSectionToXml(
+                    title = tag,
+                    tag = tag,
+                    deviceLabel = deviceLabel,
+                    releaseUrl = releaseUrl,
+                    prevTag = prevTag,
+                    markdown = body
+                )
                 entries[sortKey] = xmlEntry
             }
         } catch (e: Exception) {
@@ -231,18 +295,39 @@ class ReleasesViewModel(
     /**
      * Converts a markdown block into an XML entry string understood by Changelog.kt.
      */
-    private fun formatMarkdownSectionToXml(id: String, title: String, markdown: String): String {
+    private fun formatMarkdownSectionToXml(
+        title: String,
+        tag: String,
+        deviceLabel: String,
+        releaseUrl: String,
+        prevTag: String?,
+        markdown: String
+    ): String {
         val escapedTitle = escapeXml(title)
         val sb = StringBuilder()
         sb.append("<title>").append(escapedTitle).append("</title>")
         sb.append("<content><div>")
+
+        val hasTagsAlready = markdown.contains("Tags:", ignoreCase = true) || markdown.contains("Etiquetas:", ignoreCase = true)
+        if (!hasTagsAlready) {
+            sb.append("<p>Tags:</p>")
+            sb.append("<ul><li><a href=\"").append(releaseUrl).append("\">").append(escapeXml(tag)).append("</a> (").append(escapeXml(deviceLabel)).append(")</li></ul>")
+            if (!prevTag.isNullOrBlank()) {
+                sb.append("<p>Changes since the ").append(escapeXml(prevTag)).append(" release:</p>")
+            } else {
+                sb.append("<p>Changes in this release:</p>")
+            }
+        }
 
         val lines = markdown.lines()
         var inList = false
 
         for (rawLine in lines) {
             val line = rawLine.trim()
-            if (line.isEmpty() || line.startsWith("---") || line.startsWith("***")) {
+            if (line.isEmpty() || line.startsWith("---") || line.startsWith("***") ||
+                line.matches(Regex("""^</?(div|center|p|section|article|span)[^>]*>$""", RegexOption.IGNORE_CASE)) ||
+                line.startsWith("<!--")
+            ) {
                 if (inList) {
                     sb.append("</ul>")
                     inList = false
@@ -251,13 +336,13 @@ class ReleasesViewModel(
             }
 
             // Subheadings within a section (e.g. ### Notes or #### Fixed)
-            if (line.startsWith("#### ") || line.startsWith("### ")) {
+            if (line.startsWith("#### ") || line.startsWith("### ") || line.startsWith("## ")) {
                 if (inList) {
                     sb.append("</ul>")
                     inList = false
                 }
-                val headingText = line.replace(Regex("""^#+\s*"""), "")
-                sb.append("<h3>").append(convertInlineMarkdownToXml(headingText)).append("</h3>")
+                val headingText = line.replace(Regex("""^#+\s*"""), "").trim().trimEnd(':')
+                sb.append("<p>").append(convertInlineMarkdownToXml(headingText)).append(":</p>")
                 continue
             }
 
@@ -287,7 +372,8 @@ class ReleasesViewModel(
     }
 
     private fun convertInlineMarkdownToXml(text: String): String {
-        var result = escapeXml(text)
+        val stripped = text.replace(Regex("""<[^>]*>"""), "")
+        var result = escapeXml(stripped)
         // Convert [text](url) to <a href="url">text</a>
         result = result.replace(Regex("""\[([^\]]+)\]\(([^)]+)\)""")) { m ->
             val linkText = m.groupValues[1]
