@@ -111,7 +111,8 @@ fun ReleasesScreen(
                 ) {
                     Button(onClick = {
                         try {
-                            localUriHandler.openUri("https://grapheneos.org/releases")
+                            val device = android.os.Build.DEVICE?.lowercase() ?: "akita"
+                            localUriHandler.openUri("https://github.com/rhythmcreative/lineageos-$device-ota/releases")
                         } catch (_: IllegalArgumentException) {
                             showSnackbarError(openUriIllegalArguementExceptionSnackbarError)
                         }

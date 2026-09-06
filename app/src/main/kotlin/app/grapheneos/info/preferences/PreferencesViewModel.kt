@@ -40,16 +40,10 @@ class PreferencesViewModel(private val application: Application) : AndroidViewMo
                 _uiState.update {
                     PreferencesUiState(
                         isPreferencesLoaded = mutableStateOf(true),
-                        startDestination = getPreferencePair(uiState.value.startDestination).let {
-                            // migrate from old value
-                            if (it.second.value == "ReleaseNotes") {
-                                it.copy(
-                                    second = mutableStateOf(InfoAppScreens.Releases.name)
-                                )
-                            } else {
-                                it
-                            }
-                        }
+                        startDestination = Pair(
+                            uiState.value.startDestination.first,
+                            mutableStateOf(InfoAppScreens.Releases.name)
+                        )
                     )
                 }
             }.collect()

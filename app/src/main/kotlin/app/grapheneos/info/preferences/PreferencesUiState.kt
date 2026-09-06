@@ -15,6 +15,6 @@ data class PreferencesUiState(
     /** Start destination of NavHost. **/
     val startDestination: Pair<Preferences.Key<String>, MutableState<String>> = Pair(
         stringPreferencesKey("START_DESTINATION"),
-        mutableStateOf(InfoAppScreens.Community.name),
+        mutableStateOf(InfoAppScreens.Releases.name),
     ),
 )

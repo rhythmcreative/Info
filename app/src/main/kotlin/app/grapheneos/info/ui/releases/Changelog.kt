@@ -73,12 +73,11 @@ private fun NodeToComposable(
 
         when (attribute.nodeName) {
             "href" -> {
-                val hrefValue = attribute.nodeValue
-                val home = "https://grapheneos.org"
+                val home = "https://github.com/rhythmcreative"
                 val url = if (hrefValue.startsWith('/')) {
                     "$home$hrefValue"
                 } else if (hrefValue.startsWith('#')) {
-                    "$home/releases$hrefValue"
+                    "$home$hrefValue"
                 } else {
                     hrefValue
                 }
