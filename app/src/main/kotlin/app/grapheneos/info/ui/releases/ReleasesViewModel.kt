@@ -234,7 +234,6 @@ class ReleasesViewModel(
     private fun formatMarkdownSectionToXml(id: String, title: String, markdown: String): String {
         val escapedTitle = escapeXml(title)
         val sb = StringBuilder()
-        sb.append("<id>").append(escapeXml(id)).append("</id>")
         sb.append("<title>").append(escapedTitle).append("</title>")
         sb.append("<content><div>")
 
@@ -243,7 +242,7 @@ class ReleasesViewModel(
 
         for (rawLine in lines) {
             val line = rawLine.trim()
-            if (line.isEmpty()) {
+            if (line.isEmpty() || line.startsWith("---") || line.startsWith("***")) {
                 if (inList) {
                     sb.append("</ul>")
                     inList = false
@@ -251,6 +250,18 @@ class ReleasesViewModel(
                 continue
             }
 
+            // Subheadings within a section (e.g. ### Notes or #### Fixed)
+            if (line.startsWith("#### ") || line.startsWith("### ")) {
+                if (inList) {
+                    sb.append("</ul>")
+                    inList = false
+                }
+                val headingText = line.replace(Regex("""^#+\s*"""), "")
+                sb.append("<h3>").append(convertInlineMarkdownToXml(headingText)).append("</h3>")
+                continue
+            }
+
+            // Bullet points: - item or * item
             if (line.startsWith("- ") || line.startsWith("* ")) {
                 if (!inList) {
                     sb.append("<ul>")
@@ -277,11 +288,19 @@ class ReleasesViewModel(
 
     private fun convertInlineMarkdownToXml(text: String): String {
         var result = escapeXml(text)
+        // Convert [text](url) to <a href="url">text</a>
         result = result.replace(Regex("""\[([^\]]+)\]\(([^)]+)\)""")) { m ->
             val linkText = m.groupValues[1]
             val url = m.groupValues[2]
             "<a href=\"$url\">$linkText</a>"
         }
+        // Bold: **text** or __text__
+        result = result.replace(Regex("""\*\*(.+?)\*\*""")) { "<b>${it.groupValues[1]}</b>" }
+        result = result.replace(Regex("""__(.+?)__""")) { "<b>${it.groupValues[1]}</b>" }
+        // Inline code: `text`
+        result = result.replace(Regex("""`([^`]+)`""")) { "<b>${it.groupValues[1]}</b>" }
+        // Italic: *text*
+        result = result.replace(Regex("""(?<!\*)\*([^*]+)\*(?!\*)""")) { "<i>${it.groupValues[1]}</i>" }
         return result
     }
 

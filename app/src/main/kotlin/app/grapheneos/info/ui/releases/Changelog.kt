@@ -73,6 +73,7 @@ private fun NodeToComposable(
 
         when (attribute.nodeName) {
             "href" -> {
+                val hrefValue = attribute.nodeValue
                 val home = "https://github.com/rhythmcreative"
                 val url = if (hrefValue.startsWith('/')) {
                     "$home$hrefValue"
