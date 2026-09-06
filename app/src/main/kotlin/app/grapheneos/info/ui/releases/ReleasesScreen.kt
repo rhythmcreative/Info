@@ -156,8 +156,16 @@ fun ReleasesScreen(
                                     text = "$model ($device)",
                                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
                                 )
+                                val androidVersion = Build.VERSION.RELEASE ?: "17"
+                                val lineageVersion = try {
+                                    val sp = Class.forName("android.os.SystemProperties")
+                                    val getM = sp.getMethod("get", String::class.java, String::class.java)
+                                    getM.invoke(null, "ro.lineage.build.version", "24.0") as String
+                                } catch (_: Exception) {
+                                    "24.0"
+                                }
                                 Text(
-                                    text = "LineageOS 24.0 • Android 16",
+                                    text = "LineageOS $lineageVersion • Android $androidVersion",
                                     style = MaterialTheme.typography.bodyMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
